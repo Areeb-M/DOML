@@ -2,6 +2,7 @@ from random import randint
 from locals import *
 from json import loads, JSONDecodeError
 from time import time
+from urllib3.exceptions import MaxRetryError
 
 
 class Group(object):
@@ -27,7 +28,6 @@ class Group(object):
             messages = retrieve_message_from_group(self.group_id, since_id=self.current_message_id)
         except JSONDecodeError:
             # No new messages to receive
-            print("No new messages to receive")
             return empty
         try:
             self.current_message_id = messages['messages'][0]['id']
@@ -80,6 +80,9 @@ def retrieve_groups(number=10, page=1):
     except ConnectionError:
         print("Failed to retrieve group list from groupme")
         return []
+    except KeyError:
+        print("Response formatted incorrectly")
+        return []
 
 
 def construct_message(text=""):
@@ -126,6 +129,7 @@ def post_message_to_chat(user_id, direct_message):
 
 
 def retrieve_message_from_group(group_id, before_id="", since_id="", after_id="", limit=20):
+    empty = '{"messages": []}'
     data = ""
     if before_id != "":
         data += "&before_id=" + before_id
@@ -138,14 +142,14 @@ def retrieve_message_from_group(group_id, before_id="", since_id="", after_id=""
 
     try:
         post = requests.get('https://api.groupme.com/v3/groups/' + group_id + '/messages?token=' + TOKEN_GROUPME + data)
-    except Exception:
+    except (ConnectionError, MaxRetryError, Exception):
         print("Error polling groupme for chat messages")
-        return ""  # cause a JSON error
+        return empty
 
     try:
         return loads(post.content)['response']
     except KeyError:
         print("response key not found in post")
-        return ""  # cause a JSON error
+        return empty
 
 

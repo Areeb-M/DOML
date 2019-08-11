@@ -13,15 +13,18 @@ class GroupMeHandler:
         self.poll_index = 0
 
     async def poll_groups(self):
-        for group in self.group_list:
-            group_text_channel = self.client.get_channel(group.text_channel_id)
-            messages_received = group.poll()['messages']
-            # Skip the group if there are no new updates
-            if len(messages_received) < 1:
-                continue
-            # Loop through them backwards to send them in the correct order
-            for i in range(-1, -1-len(messages_received), -1):
-                await self.post_formatted_message(messages_received[i], group_text_channel)
+        group = self.group_list[self.poll_index]
+        self.poll_index += 1
+        self.poll_index %= len(self.group_list)
+
+        group_text_channel = self.client.get_channel(group.text_channel_id)
+        messages_received = group.poll()['messages']
+        # Skip the group if there are no new updates
+        if len(messages_received) < 1:
+            return
+        # Loop through them backwards to send them in the correct order
+        for i in range(-1, -1-len(messages_received), -1):
+            await self.post_formatted_message(messages_received[i], group_text_channel)
 
     async def post_formatted_message(self, message, group_text_channel):
         #if message['sender_id'] == USERID_GROUPME:

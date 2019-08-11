@@ -6,7 +6,7 @@ from asyncio import sleep
 
 
 class DiscordClient(discord.Client):
-    def __init__(self, time_between_refresh=60):
+    def __init__(self, time_between_refresh=10):
         self.group_list = GroupMe.Group.generate_group_list(retrieve_group_data())
         self.group_cache = {}
         self.guild = None
@@ -17,6 +17,7 @@ class DiscordClient(discord.Client):
 
         self.time_between_refresh = time_between_refresh
         self.time_last_refresh = 0  # Have a refresh happen immediately
+        self.tick_count = 0  # Store tick_count outside as a measure against multiple instances of the tick routine
 
         super().__init__()
 
@@ -83,19 +84,22 @@ class DiscordClient(discord.Client):
             self.group_cache[channel] = group
 
     async def tick(self):
-        tick_count = 0
+        if self.tick_count > 0:  # Ensures that multiple instances of the tick routine aren't run at the same time
+            return
+
         while True:
             # Refresh Group List every <self.time_between_refresh> seconds
             if time() - self.time_last_refresh > self.time_between_refresh:
+                print("Refreshing group list")
                 await self.update_channels()
                 self.generate_group_cache()
                 self.time_last_refresh = time()
 
-            tick_count += 1
-            print("tick {}".format(tick_count))
+            self.tick_count += 1
+            print("tick {}".format(self.tick_count))
 
             # Check groups for new messages and post them
             await self.groupme_handler.poll_groups()
 
             # Hand off to the main loop
-            await sleep(0.1)
+            await sleep(0.05)
